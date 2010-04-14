@@ -26,6 +26,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.Gmail;
+import android.database.Cursor;
+import java.util.TimeZone;
+import android.content.ContentValues;
+import android.provider.Calendar.Calendars;
+import android.content.ContentResolver;
 
 public class LaunchActivity extends Activity {
     static final String KEY_DETAIL_VIEW = "DETAIL_VIEW";
@@ -90,8 +95,30 @@ public class LaunchActivity extends Activity {
         finish();
     }
 
+     private int addDefaultCalendar(final String account) {                    
+        final ContentValues cvCal = new ContentValues();
+ 
+         cvCal.put(Calendars.NAME, account);
+         cvCal.put(Calendars.DISPLAY_NAME, account);
+         cvCal.put(Calendars.HIDDEN, 0);
+         cvCal.put(Calendars.COLOR, -14069085);
+         cvCal.put(Calendars.ACCESS_LEVEL, Integer.toString
+                   (Calendars.OWNER_ACCESS));
+         cvCal.put(Calendars.SELECTED, 1);
+         cvCal.put(Calendars.SYNC_EVENTS, 1);
+         cvCal.put(Calendars.TIMEZONE, TimeZone.getDefault().getID());
+ 
+         final Uri newCalendarUri = getContentResolver().insert(Calendars.CONTENT_URI, cvCal);
+         if (newCalendarUri == null) {
+             return 0;
+         }
+        return Integer.parseInt(newCalendarUri.getLastPathSegment());
+     }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        String[] ACCOUNTS_PROJECTION = new String[] { Calendars._SYNC_ACCOUNT};
+
         super.onActivityResult(requestCode, resultCode, intent);
         if (requestCode == GET_ACCOUNT_REQUEST) {
             if (resultCode == RESULT_OK) {
@@ -104,7 +131,22 @@ public class LaunchActivity extends Activity {
                     }
                 }
             } else {
-                finish();
+                // finish();
+                String defaultCalendar = "Default";
+                ContentResolver cr = getContentResolver();
+                Cursor cursor = cr.query(Calendars.CONTENT_URI,
+                                         ACCOUNTS_PROJECTION,
+                                         null, null,
+                                         Calendars.DEFAULT_SORT_ORDER);
+                if (cursor == null) {
+                    finish();
+                } else {
+                    if (cursor.getCount() == 0) {
+                        addDefaultCalendar(defaultCalendar);
+                    }
+                    cursor.close();
+                }
+                onAccountsLoaded(defaultCalendar);
             }
         }
     }
